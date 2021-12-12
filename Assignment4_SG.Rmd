@@ -1,0 +1,129 @@
+---
+title: "ANA 515 Assignment 4"
+author: "Siliang Gong"
+date: "Dec 11, 2021"
+output:
+  pdf_document: default
+  html_document: default
+
+---
+
+
+
+``` {r setup, include = FALSE}
+
+library(tidyverse)
+library(stringr)
+library(knitr)
+library(ggplot2)
+
+```
+
+
+## Introduction
+
+In this assignment, I will work on the Mall customers dataset. It contains information about people visiting the mall, including gender, age, annual income of each customer. The purpose of the data analysis is to segmentate customers based on the age, gender, interests. Using clustering techniques, companies can identify the several segments of customers allowing them to target the potential user base. 
+
+## Data Import and Description
+
+The data set is available from [https://www.kaggle.com/shwetabh123/mall-customers](https://www.kaggle.com/shwetabh123/mall-customers). 
+
+First, I read the data into R using the following code: 
+
+```{r echo = TRUE}
+
+# read the data into a dataframe
+
+customer_data <- read.csv("Mall_Customers.csv")
+
+# A glimpse of data
+
+head(customer_data, 5)
+
+```
+
+The customer segmentation data has `r nrow(customer_data)` rows and `r ncol(customer_data)`. There are 5 variables in the data set, with variable names as below:
+
+```{r echo = TRUE}
+# Variable names
+
+colnames(customer_data)
+
+```
+
+The summary statistics of `Age`, `Gender`, `Annual.Income..k..` and `Spending.Score..1.100.` are:
+
+```{r echo = TRUE}
+# Summary statistics
+
+summary(customer_data$Age)
+summary(customer_data$Gender)
+summary(customer_data$Annual.Income..k..)
+summary(customer_data$Spending.Score..1.100.)
+
+```
+
+## Data Preparation
+
+The data set is clean and there are no missing observations or errors. It is possible that the variable types for `Age`,  `Annual.Income..k..` and `Spending.Score..1.100.` have been converted to numeric (interger) from character. The values for these three variables should be positive. If there are any negative observations, then it is possible that recording errors occur during data collection. 
+
+## Data Analysis: Modeling and Outputs
+
+K-means algorithm could be applied to segmentate customers into clusters. Suppose there are k clusters, the algorithm starts by selecting k observations randomly from the sample to be the initial center for the clusters. Then the remaining observations are assigned to the closest center, where the Euclidean Distance is used as the metric. When the assignment is complete, the new mean of each cluster is recalculated based on observations falling into the cluster. After the new centers are identified, each observation is reassigned to the closest center. This process will be repeated until the cluster assignments stop altering. 
+
+One important step in k-means algorithm is to identify the number of clusters. This could be done as follows: first let the number of clusters varies from 1 to 10; then calculate the total intra-cluster sum of square (iss); then proceed to plot iss based on the number of k clusters. This plot denotes the appropriate number of clusters required in our model. In the plot, the location of a bend or a knee is the indication of the optimum number of clusters. The folowing R code could used to implement this procedure.
+
+```{r echo=T}
+
+# Find the number of clusters for k-means algorithm
+
+library(purrr)
+set.seed(123)
+# function to calculate total intra-cluster sum of square 
+iss <- function(k) {
+  kmeans(customer_data[,3:5],k,iter.max=100,nstart=100,algorithm="Lloyd" )$tot.withinss
+}
+k.values <- 1:10
+iss_values <- map_dbl(k.values, iss)
+plot(k.values, iss_values,
+    type="b", pch = 19, frame = FALSE, 
+    xlab="Number of clusters K",
+    ylab="Total intra-clusters sum of squares")
+
+```
+
+From the above plot, one can see that 5 is the appropriate number of clusters since it apppears at the bend in the elbow plot. 
+
+Now apply k-means algorithm with 5 clusters to the data set in R:
+
+```{r echo=T}
+
+k5<- kmeans(customer_data[,3:5], 5, iter.max=100,nstart=50,algorithm="Lloyd")
+k5
+
+```
+
+The R outputs show information including the cluster assignment for each observation, the cluster means, the total sum of squares, the intra-cluster sum of squares, etc. 
+
+## Data Visualization
+
+Now we visualize the clustering results in the following plots. 
+
+```{r echo=T}
+set.seed(1)
+ggplot(customer_data, aes(x =Annual.Income..k.., y = Spending.Score..1.100.)) + 
+  geom_point(stat = "identity", aes(color = as.factor(k5$cluster))) +
+  scale_color_discrete(name=" ",
+              breaks=c("1", "2", "3", "4", "5"),
+              labels=c("Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4", "Cluster 5")) +
+  ggtitle("Segments of Mall Customers", subtitle = "Using K-means Clustering")
+
+```
+
+From the above plot, one can see that the 5 clusters are well separated:
+
+* Cluster 1: this cluster represents customers with median annual income and spending scores.
+* Cluster 2: this cluster  comprises of customers with high annual income and low spending scores.
+* Cluster 3:  this cluster represents customers with high annual income and high spending scores.
+* Cluster 4: this cluster comprises of customers with low annual income and high spending scores.
+* Cluster 5: this cluster comprises of customers with low annual income and low spending scores. 
